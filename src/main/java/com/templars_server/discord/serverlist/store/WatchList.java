@@ -62,4 +62,12 @@ public class WatchList {
         }
     }
 
+    public WatchedChannel remove(String guildId, String channelId) {
+        Map<String, WatchedChannel> channelMap = watchMap.get(guildId);
+        if (channelMap == null) {
+            return null;
+        }
+
+        return channelMap.remove(channelId);
+    }
 }

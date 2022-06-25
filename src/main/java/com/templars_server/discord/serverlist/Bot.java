@@ -3,6 +3,7 @@ package com.templars_server.discord.serverlist;
 import com.templars_server.discord.serverlist.api.ServerData;
 import com.templars_server.discord.serverlist.api.ServerListAPI;
 import com.templars_server.discord.serverlist.command.LocalCommand;
+import com.templars_server.discord.serverlist.command.LocalCommandUnwatch;
 import com.templars_server.discord.serverlist.command.LocalCommandWatch;
 import com.templars_server.discord.serverlist.store.MBMode;
 import com.templars_server.discord.serverlist.store.Region;
@@ -51,6 +52,7 @@ public class Bot extends ListenerAdapter {
         watchList = new WatchList();
         api = new ServerListAPI();
         registerCommand(new LocalCommandWatch());
+        registerCommand(new LocalCommandUnwatch());
     }
 
     public void onReady(@Nonnull ReadyEvent event) {
