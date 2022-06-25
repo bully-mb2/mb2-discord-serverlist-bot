@@ -36,6 +36,7 @@ public class Bot extends ListenerAdapter {
     private static final String API_URL = "https://servers.moviebattles.org/api/get/list";
     private static final int MAX_EMBED_TABLE_SIZE = 12;
     private static final int EMBED_COLOR = 0x35ed47;
+    private static final int MAX_RETRIES_BEFORE_PANIC = 5;
 
     private final int checkInterval;
     private final Map<String, LocalCommand> commandList;
@@ -102,6 +103,7 @@ public class Bot extends ListenerAdapter {
 
     @SuppressWarnings("BusyWait")
     private void queryRun() {
+        int retry = 0;
         while(true) {
             LOG.info("Updating server list");
             try {
@@ -110,9 +112,14 @@ public class Bot extends ListenerAdapter {
                 sendEmbeds(serverDataList);
                 lastServerData = serverDataList;
                 Thread.sleep(checkInterval);
+                retry = 0;
             } catch (IOException | InterruptedException e) {
-                LOG.info("Error encountered updating server list", e);
-                return;
+                retry++;
+                LOG.error("Error encountered updating server list, retry " + retry, e);
+                if (retry > MAX_RETRIES_BEFORE_PANIC) {
+                    LOG.error("Maximum retries exceeded, exiting");
+                    return;
+                }
             }
         }
     }
