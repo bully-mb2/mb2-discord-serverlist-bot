@@ -23,84 +23,28 @@ public class ServerData {
     private String mbmode;
     private String rtvrtm_state;
 
-    public String getId() {
-        return id;
-    }
-
-    public String getAddress() {
-        return address;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public String getSv_hostname() {
-        return sv_hostname;
-    }
-
-    public String getSv_hostname_nocolor() {
+    public String getHostnameNoColor() {
         return sv_hostname_nocolor;
     }
 
-    public String getMapname() {
+    public String getMapName() {
         return mapname;
     }
 
-    public int getNumplayers() {
+    public int getNumPlayers() {
         return numplayers;
     }
 
-    public int getNumbots() {
-        return numbots;
-    }
-
-    public int getSv_maxclients() {
+    public int getMaxClients() {
         return sv_maxclients;
     }
 
-    public int getG_gametype() {
-        return g_gametype;
-    }
-
-    public int getG_needpass() {
-        return g_needpass;
-    }
-
-    public String getCountry() {
-        return country;
-    }
-
-    public String getCountry_code() {
-        return country_code;
-    }
-
-    public String getRegion() {
-        return region;
-    }
-
-    public String getRegion_code() {
+    public String getRegionCode() {
         return region_code;
     }
 
-    public String getDiscord() {
-        return discord;
-    }
-
-    public String getFirst_seen() {
-        return first_seen;
-    }
-
-    public String getMbversion() {
-        return mbversion;
-    }
-
-    public String getMbmode() {
+    public String getMBMode() {
         return mbmode;
-    }
-
-    public String getRtvrtm_state() {
-        return rtvrtm_state;
     }
 
 }

@@ -173,7 +173,7 @@ public class Bot extends ListenerAdapter {
         int populated = 0;
         int totalPlaying = 0;
         for (ServerData server : serverData) {
-            int players = server.getNumplayers();
+            int players = server.getNumPlayers();
             if (players > 0) {
                 populated++;
             }
@@ -181,10 +181,10 @@ public class Bot extends ListenerAdapter {
             totalPlaying += players;
         }
         List<ServerData> sortedData = serverData.stream()
-                .filter(server -> server.getNumplayers() >= watchedChannel.getMinPlayers())
-                .filter(server -> watchedChannel.getRegion() == Region.ALL || watchedChannel.getRegion().checkRegionCode(server.getRegion_code()))
-                .filter(server -> watchedChannel.getMbMode() == MBMode.ALL || watchedChannel.getMbMode().checkMBMode(server.getMbmode()))
-                .sorted(Comparator.comparingInt(ServerData::getNumplayers).reversed())
+                .filter(server -> server.getNumPlayers() >= watchedChannel.getMinPlayers())
+                .filter(server -> watchedChannel.getRegion() == Region.ALL || watchedChannel.getRegion().checkRegionCode(server.getRegionCode()))
+                .filter(server -> watchedChannel.getMbMode() == MBMode.ALL || watchedChannel.getMbMode().checkMBMode(server.getMBMode()))
+                .sorted(Comparator.comparingInt(ServerData::getNumPlayers).reversed())
                 .limit(MAX_EMBED_TABLE_SIZE)
                 .collect(Collectors.toList());
 
@@ -198,11 +198,11 @@ public class Bot extends ListenerAdapter {
         table.addRule();
         for (ServerData server : sortedData) {
             table.addRow(
-                    server.getRegion_code() + " ",
-                    server.getSv_hostname_nocolor() + " ",
-                    server.getMapname(),
-                    server.getNumplayers() + "/" + server.getSv_maxclients(),
-                    server.getMbmode().equals("Authentic") ? "FA" : server.getMbmode()
+                    server.getRegionCode() + " ",
+                    server.getHostnameNoColor() + " ",
+                    server.getMapName(),
+                    server.getNumPlayers() + "/" + server.getMaxClients(),
+                    server.getMBMode().equals("Authentic") ? "FA" : server.getMBMode()
             );
             table.addRule();
         }
