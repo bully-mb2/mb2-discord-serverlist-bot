@@ -105,6 +105,7 @@ public class Bot extends ListenerAdapter {
             LOG.info("Updating server list");
             try {
                 List<ServerData> serverDataList = api.getList();
+                LOG.info(serverDataList.size() + " servers found, updating embeds");
                 sendEmbeds(serverDataList);
                 lastServerData = serverDataList;
                 Thread.sleep(checkInterval);
