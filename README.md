@@ -1,5 +1,5 @@
 # MB2 Discord Serverlist Bot
-This simple discord bot reports the [Movie Battles](https://community.moviebattles.org/) server list to your discord channels using it's public [API](https://servers.moviebattles.org/api).
+This simple discord bot reports the [Movie Battles](https://community.moviebattles.org/) server list to your discord channels using its public [API](https://servers.moviebattles.org/api).
 
 ![image](https://user-images.githubusercontent.com/86576295/175781484-7e814dfb-f747-41e6-aa60-b8b3d009762c.png)
 
