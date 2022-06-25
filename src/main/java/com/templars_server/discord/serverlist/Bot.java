@@ -35,6 +35,7 @@ public class Bot extends ListenerAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
     private static final String API_URL = "https://servers.moviebattles.org/api/get/list";
     private static final int MAX_EMBED_TABLE_SIZE = 12;
+    private static final int EMBED_COLOR = 0x35ed47;
 
     private final int checkInterval;
     private final Map<String, LocalCommand> commandList;
@@ -211,7 +212,7 @@ public class Bot extends ListenerAdapter {
         EmbedBuilder builder = new EmbedBuilder();
         builder.setTitle("MBII Server List - (Region: " + watchedChannel.getRegion() + ", Mode: " + watchedChannel.getMbMode() + ", Min Slots: " + watchedChannel.getMinPlayers() + ")");
         builder.setDescription("```" + table.render() + "```");
-        builder.setColor(0x35ed47);
+        builder.setColor(EMBED_COLOR);
         builder.setTimestamp(Instant.now());
         builder.setFooter("There are " + populated + " out of " + serverData.size() + " servers populated with " + totalPlaying + " players total.");
         return builder.build();
