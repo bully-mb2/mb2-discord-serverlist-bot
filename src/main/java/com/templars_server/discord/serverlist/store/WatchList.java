@@ -70,4 +70,5 @@ public class WatchList {
 
         return channelMap.remove(channelId);
     }
+
 }

@@ -45,6 +45,8 @@ public class Bot extends ListenerAdapter {
     private final WatchList watchList;
     private final ServerListAPI api;
     private List<ServerData> lastServerData;
+    private int lastPopulated;
+    private int lastTotalPlaying;
 
     public Bot(int checkIntervalMinutes) {
         checkInterval = checkIntervalMinutes * 60 * 1000;
@@ -53,6 +55,9 @@ public class Bot extends ListenerAdapter {
         queryThread = new Thread(this::queryRun, "QueryThread");
         watchList = new WatchList();
         api = new ServerListAPI();
+        lastServerData = new ArrayList<>();
+        lastPopulated = 0;
+        lastTotalPlaying = 0;
         registerCommand(new LocalCommandWatch());
         registerCommand(new LocalCommandUnwatch());
     }
@@ -109,7 +114,18 @@ public class Bot extends ListenerAdapter {
             try {
                 List<ServerData> serverDataList = api.getList();
                 LOG.info(serverDataList.size() + " servers found, updating embeds");
-                sendEmbeds(serverDataList);
+                lastPopulated = 0;
+                lastTotalPlaying = 0;
+                for (ServerData server : serverDataList) {
+                    int players = server.getNumPlayers();
+                    if (players > 0) {
+                        lastPopulated++;
+                    }
+
+                    lastTotalPlaying += players;
+                }
+
+                sendEmbeds(serverDataList, lastPopulated, lastTotalPlaying);
                 lastServerData = serverDataList;
                 Thread.sleep(checkInterval);
                 retry = 0;
@@ -132,7 +148,7 @@ public class Bot extends ListenerAdapter {
         commandList.put(command.getName(), command);
     }
 
-    private void sendEmbeds(List<ServerData> serverData) {
+    private void sendEmbeds(List<ServerData> serverData, int populated, int totalPlaying) {
         for (Map.Entry<String, Guild> guildEntry : guilds.entrySet()) {
             String guildId = guildEntry.getKey();
             Guild guild = guildEntry.getValue();
@@ -145,7 +161,7 @@ public class Bot extends ListenerAdapter {
                     return;
                 }
 
-                sendChannelEmbed(channel, watchedChannel, serverData);
+                sendChannelEmbed(channel, watchedChannel, serverData, populated, totalPlaying);
             }
         }
     }
@@ -155,12 +171,12 @@ public class Bot extends ListenerAdapter {
             return;
         }
 
-        sendChannelEmbed(channel, watchedChannel, lastServerData);
+        sendChannelEmbed(channel, watchedChannel, lastServerData, lastPopulated, lastTotalPlaying);
     }
 
-    private void sendChannelEmbed(TextChannel channel, WatchedChannel watchedChannel, List<ServerData> serverData) {
+    private void sendChannelEmbed(TextChannel channel, WatchedChannel watchedChannel, List<ServerData> serverData, int populated, int totalPlaying) {
         String messageId = watchedChannel.getMessageId();
-        MessageEmbed messageEmbed = buildEmbed(watchedChannel, serverData);
+        MessageEmbed messageEmbed = buildEmbed(watchedChannel, serverData, populated, totalPlaying);
         boolean sent = false;
         if (messageId != null) {
             try {
@@ -178,17 +194,7 @@ public class Bot extends ListenerAdapter {
         }
     }
 
-    private MessageEmbed buildEmbed(WatchedChannel watchedChannel, List<ServerData> serverData) {
-        int populated = 0;
-        int totalPlaying = 0;
-        for (ServerData server : serverData) {
-            int players = server.getNumPlayers();
-            if (players > 0) {
-                populated++;
-            }
-
-            totalPlaying += players;
-        }
+    private MessageEmbed buildEmbed(WatchedChannel watchedChannel, List<ServerData> serverData, int populated, int totalPlaying) {
         List<ServerData> sortedData = serverData.stream()
                 .filter(server -> server.getNumPlayers() >= watchedChannel.getMinPlayers())
                 .filter(server -> watchedChannel.getRegion() == Region.ALL || watchedChannel.getRegion().checkRegionCode(server.getRegionCode()))
