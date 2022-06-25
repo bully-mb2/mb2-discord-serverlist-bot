@@ -1,5 +1,5 @@
 # MB2 Discord Serverlist Bot
-This simple discord bot reports the [Movie Battles](https://community.moviebattles.org/) server list to your discord channels using it's public [API] (https://servers.moviebattles.org/api).
+This simple discord bot reports the [Movie Battles](https://community.moviebattles.org/) server list to your discord channels using it's public [API](https://servers.moviebattles.org/api).
 
 ![image](https://user-images.githubusercontent.com/86576295/175781484-7e814dfb-f747-41e6-aa60-b8b3d009762c.png)
 
@@ -13,9 +13,9 @@ Or use this [invite link](https://discord.com/api/oauth2/authorize?client_id=989
 Commands:
   /watch -- Configure the current channel to track the server list in
     Options:
-      Optional: Region (EU, NA, SA, OC)
-      Optional: Mode (Open, Duel, Legends, Authentic)
-      Optional: Minimum Player Count (0-32)
+      - Region (EU, NA, SA, OC) (Optional, default ALL)
+      - Mode (Open, Duel, Legends, Authentic) (Optional, default ALL)
+      - Minimum Player Count (0-32) (Optional, default 0)
       
  /unwatch -- Remove server list from channel
 ```
