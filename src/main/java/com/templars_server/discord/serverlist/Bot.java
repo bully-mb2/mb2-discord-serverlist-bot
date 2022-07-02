@@ -14,13 +14,16 @@ import de.vandermeer.asciitable.CWC_LongestLine;
 import de.vandermeer.asciithemes.TA_GridThemes;
 import de.vandermeer.skb.interfaces.transformers.textformat.TextAlignment;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.ReadyEvent;
+import net.dv8tion.jda.api.events.guild.GuildLeaveEvent;
 import net.dv8tion.jda.api.events.guild.GuildReadyEvent;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.exceptions.ErrorResponseException;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,32 +36,40 @@ import java.util.stream.Collectors;
 public class Bot extends ListenerAdapter {
 
     private static final Logger LOG = LoggerFactory.getLogger(Bot.class);
-    private static final String API_URL = "https://servers.moviebattles.org/api/get/list";
     private static final int MAX_EMBED_TABLE_SIZE = 12;
+    private static final int EMBED_COLOR = 0x35ed47;
+    private static final int MAX_RETRIES_BEFORE_PANIC = 5;
 
     private final int checkInterval;
     private final Map<String, LocalCommand> commandList;
-    private final Map<String, Guild> guilds;
+    private final Set<String> guildIds;
     private final Thread queryThread;
     private final WatchList watchList;
     private final ServerListAPI api;
+    private JDA jda;
     private List<ServerData> lastServerData;
+    private int lastPopulated;
+    private int lastTotalPlaying;
 
     public Bot(int checkIntervalMinutes) {
         checkInterval = checkIntervalMinutes * 60 * 1000;
         commandList = new HashMap<>();
-        guilds = new HashMap<>();
+        guildIds = new HashSet<>();
         queryThread = new Thread(this::queryRun, "QueryThread");
         watchList = new WatchList();
         api = new ServerListAPI();
+        lastServerData = new ArrayList<>();
+        lastPopulated = 0;
+        lastTotalPlaying = 0;
         registerCommand(new LocalCommandWatch());
         registerCommand(new LocalCommandUnwatch());
     }
 
     public void onReady(@Nonnull ReadyEvent event) {
+        jda = event.getJDA();
         LOG.info("Loading watch list");
         watchList.loadFromFile();
-        LOG.info("Loaded, watching " + watchList.size() + " channels");
+        cleanup(guildIds);
         LOG.info("Starting query thread");
         queryThread.start();
     }
@@ -70,8 +81,15 @@ public class Bot extends ListenerAdapter {
                 .addOptions(localCommand.getOptionData())
                 .queue()
         );
-        guilds.put(guild.getId(), guild);
-        event.getJDA().getPresence().setActivity(Activity.watching(guilds.size() + " " + (guilds.size() > 1 ? "sectors" : "sector")));
+        guildIds.add(guild.getId());
+        event.getJDA().getPresence().setActivity(Activity.watching(guildIds.size() + " " + (guildIds.size() > 1 ? "sectors" : "sector")));
+    }
+
+    @Override
+    public void onGuildLeave(@NotNull GuildLeaveEvent event) {
+        Guild guild = event.getGuild();
+        LOG.info("Leaving guild " + guild.getName());
+        guildIds.remove(guild.getId());
     }
 
     @Override
@@ -101,16 +119,34 @@ public class Bot extends ListenerAdapter {
 
     @SuppressWarnings("BusyWait")
     private void queryRun() {
+        int retry = 0;
         while(true) {
             LOG.info("Updating server list");
             try {
                 List<ServerData> serverDataList = api.getList();
-                sendEmbeds(serverDataList);
+                LOG.info(serverDataList.size() + " servers found, updating embeds");
+                lastPopulated = 0;
+                lastTotalPlaying = 0;
+                for (ServerData server : serverDataList) {
+                    int players = server.getNumPlayers();
+                    if (players > 0) {
+                        lastPopulated++;
+                    }
+
+                    lastTotalPlaying += players;
+                }
+
+                sendEmbeds(fetchGuilds(guildIds), serverDataList, lastPopulated, lastTotalPlaying);
                 lastServerData = serverDataList;
                 Thread.sleep(checkInterval);
+                retry = 0;
             } catch (IOException | InterruptedException e) {
-                LOG.info("Error encountered updating server list", e);
-                return;
+                retry++;
+                LOG.error("Error encountered updating server list, retry " + retry, e);
+                if (retry > MAX_RETRIES_BEFORE_PANIC) {
+                    LOG.error("Maximum retries exceeded, exiting");
+                    return;
+                }
             }
         }
     }
@@ -123,10 +159,26 @@ public class Bot extends ListenerAdapter {
         commandList.put(command.getName(), command);
     }
 
-    private void sendEmbeds(List<ServerData> serverData) {
-        for (Map.Entry<String, Guild> guildEntry : guilds.entrySet()) {
-            String guildId = guildEntry.getKey();
-            Guild guild = guildEntry.getValue();
+    private void cleanup(Set<String> usedGuildIds) {
+        LOG.info("Cleaning up watch list");
+        int before = watchList.getGuildIds().size();
+        watchList.getGuildIds().retainAll(usedGuildIds);
+        watchList.saveToFile();
+        LOG.info("Cleaned up " + (before - watchList.getGuildIds().size()) + " guilds");
+    }
+
+    private List<Guild> fetchGuilds(Set<String> guildIds) {
+        List<Guild> guilds = new ArrayList<>();
+        for (String id : guildIds) {
+            guilds.add(jda.getGuildById(id));
+        }
+
+        return guilds;
+    }
+
+    private void sendEmbeds(List<Guild> guilds, List<ServerData> serverData, int populated, int totalPlaying) {
+        for (Guild guild : guilds) {
+            String guildId = guild.getId();
             for (Map.Entry<String, WatchedChannel> entry : watchList.get(guildId).entrySet()) {
                 String channelId = entry.getKey();
                 WatchedChannel watchedChannel = entry.getValue();
@@ -136,7 +188,7 @@ public class Bot extends ListenerAdapter {
                     return;
                 }
 
-                sendChannelEmbed(channel, watchedChannel, serverData);
+                sendChannelEmbed(channel, watchedChannel, serverData, populated, totalPlaying);
             }
         }
     }
@@ -146,12 +198,12 @@ public class Bot extends ListenerAdapter {
             return;
         }
 
-        sendChannelEmbed(channel, watchedChannel, lastServerData);
+        sendChannelEmbed(channel, watchedChannel, lastServerData, lastPopulated, lastTotalPlaying);
     }
 
-    private void sendChannelEmbed(TextChannel channel, WatchedChannel watchedChannel, List<ServerData> serverData) {
+    private void sendChannelEmbed(TextChannel channel, WatchedChannel watchedChannel, List<ServerData> serverData, int populated, int totalPlaying) {
         String messageId = watchedChannel.getMessageId();
-        MessageEmbed messageEmbed = buildEmbed(watchedChannel, serverData);
+        MessageEmbed messageEmbed = buildEmbed(watchedChannel, serverData, populated, totalPlaying);
         boolean sent = false;
         if (messageId != null) {
             try {
@@ -169,22 +221,12 @@ public class Bot extends ListenerAdapter {
         }
     }
 
-    private MessageEmbed buildEmbed(WatchedChannel watchedChannel, List<ServerData> serverData) {
-        int populated = 0;
-        int totalPlaying = 0;
-        for (ServerData server : serverData) {
-            int players = server.getNumplayers();
-            if (players > 0) {
-                populated++;
-            }
-
-            totalPlaying += players;
-        }
+    private MessageEmbed buildEmbed(WatchedChannel watchedChannel, List<ServerData> serverData, int populated, int totalPlaying) {
         List<ServerData> sortedData = serverData.stream()
-                .filter(server -> server.getNumplayers() >= watchedChannel.getMinPlayers())
-                .filter(server -> watchedChannel.getRegion() == Region.ALL || watchedChannel.getRegion().checkRegionCode(server.getRegion_code()))
-                .filter(server -> watchedChannel.getMbMode() == MBMode.ALL || watchedChannel.getMbMode().checkMBMode(server.getMbmode()))
-                .sorted(Comparator.comparingInt(ServerData::getNumplayers).reversed())
+                .filter(server -> server.getNumPlayers() >= watchedChannel.getMinPlayers())
+                .filter(server -> watchedChannel.getRegion() == Region.ALL || watchedChannel.getRegion().checkRegionCode(server.getRegionCode()))
+                .filter(server -> watchedChannel.getMbMode() == MBMode.ALL || watchedChannel.getMbMode().checkMBMode(server.getMBMode()))
+                .sorted(Comparator.comparingInt(ServerData::getNumPlayers).reversed())
                 .limit(MAX_EMBED_TABLE_SIZE)
                 .collect(Collectors.toList());
 
@@ -198,11 +240,11 @@ public class Bot extends ListenerAdapter {
         table.addRule();
         for (ServerData server : sortedData) {
             table.addRow(
-                    server.getRegion_code() + " ",
-                    server.getSv_hostname_nocolor() + " ",
-                    server.getMapname(),
-                    server.getNumplayers() + "/" + server.getSv_maxclients(),
-                    server.getMbmode().equals("Authentic") ? "FA" : server.getMbmode()
+                    server.getRegionCode() + " ",
+                    server.getHostnameNoColor() + " ",
+                    server.getMapName(),
+                    server.getNumPlayers() + "/" + server.getMaxClients(),
+                    server.getMBMode().equals("Authentic") ? "FA" : server.getMBMode()
             );
             table.addRule();
         }
@@ -210,7 +252,7 @@ public class Bot extends ListenerAdapter {
         EmbedBuilder builder = new EmbedBuilder();
         builder.setTitle("MBII Server List - (Region: " + watchedChannel.getRegion() + ", Mode: " + watchedChannel.getMbMode() + ", Min Slots: " + watchedChannel.getMinPlayers() + ")");
         builder.setDescription("```" + table.render() + "```");
-        builder.setColor(0x35ed47);
+        builder.setColor(EMBED_COLOR);
         builder.setTimestamp(Instant.now());
         builder.setFooter("There are " + populated + " out of " + serverData.size() + " servers populated with " + totalPlaying + " players total.");
         return builder.build();

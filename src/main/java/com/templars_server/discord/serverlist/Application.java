@@ -1,7 +1,6 @@
 package com.templars_server.discord.serverlist;
 
 import com.templars_server.util.settings.Settings;
-import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.utils.cache.CacheFlag;
@@ -32,10 +31,7 @@ public class Application {
         builder.setBulkDeleteSplittingEnabled(false);
         builder.addEventListeners(new Bot(checkInterval));
         builder.setActivity(Activity.watching("MBII Server List"));
-        JDA jda = builder.build();
-        jda.retrieveCommands().complete().forEach(command -> {
-            jda.deleteCommandById(command.getId()).queue();
-        });
+        builder.build();
     }
 
 }
