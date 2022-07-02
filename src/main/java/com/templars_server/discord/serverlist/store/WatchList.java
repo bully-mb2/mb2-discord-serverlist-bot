@@ -1,14 +1,14 @@
 package com.templars_server.discord.serverlist.store;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import com.google.gson.reflect.TypeToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class WatchList {
 
@@ -33,10 +33,8 @@ public class WatchList {
         return watchMap.computeIfAbsent(guildId, map -> new HashMap<>());
     }
 
-    public int size() {
-        return watchMap.values().stream()
-                .map(Map::size)
-                .reduce(0, Integer::sum);
+    public Set<String> getGuildIds() {
+        return watchMap.keySet();
     }
 
     public void loadFromFile() {
@@ -46,7 +44,7 @@ public class WatchList {
             if (watchList != null) {
                 this.watchMap.putAll(watchList);
             }
-        } catch (IOException e) {
+        } catch (IOException | JsonParseException e) {
             LOG.error("Couldn't load watch list", e);
         }
     }
@@ -69,6 +67,10 @@ public class WatchList {
         }
 
         return channelMap.remove(channelId);
+    }
+
+    public void remove(String guildId) {
+        watchMap.remove(guildId);
     }
 
 }
