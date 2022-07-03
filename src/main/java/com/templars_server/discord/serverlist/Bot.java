@@ -139,19 +139,22 @@ public class Bot extends ListenerAdapter {
 
                 sendEmbeds(fetchGuilds(guildIds), serverDataList, lastPopulated, lastTotalPlaying);
                 lastServerData = serverDataList;
+
+                retry = 0;
+            } catch (Exception e) {
+                retry++;
+                LOG.error("Error encountered updating server list, retry " + retry, e);
+            }
+
+            try {
                 if (retry > MAX_RETRIES_BEFORE_PANIC) {
                     Thread.sleep(MAX_RETRY_INTERVAL);
                 } else {
                     Thread.sleep(checkInterval);
                 }
-
-                retry = 0;
             } catch (InterruptedException e) {
                 LOG.error("Server list thread interrupted", e);
                 return;
-            } catch (Exception e) {
-                retry++;
-                LOG.error("Error encountered updating server list, retry " + retry, e);
             }
         }
     }
