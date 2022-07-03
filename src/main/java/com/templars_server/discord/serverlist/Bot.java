@@ -39,6 +39,7 @@ public class Bot extends ListenerAdapter {
     private static final int MAX_EMBED_TABLE_SIZE = 12;
     private static final int EMBED_COLOR = 0x35ed47;
     private static final int MAX_RETRIES_BEFORE_PANIC = 5;
+    private static final int MAX_RETRY_INTERVAL = 30 * 60 * 1000;
 
     private final int checkInterval;
     private final Map<String, LocalCommand> commandList;
@@ -138,15 +139,19 @@ public class Bot extends ListenerAdapter {
 
                 sendEmbeds(fetchGuilds(guildIds), serverDataList, lastPopulated, lastTotalPlaying);
                 lastServerData = serverDataList;
-                Thread.sleep(checkInterval);
+                if (retry > MAX_RETRIES_BEFORE_PANIC) {
+                    Thread.sleep(MAX_RETRY_INTERVAL);
+                } else {
+                    Thread.sleep(checkInterval);
+                }
+
                 retry = 0;
-            } catch (IOException | InterruptedException e) {
+            } catch (InterruptedException e) {
+                LOG.error("Server list thread interrupted", e);
+                return;
+            } catch (Exception e) {
                 retry++;
                 LOG.error("Error encountered updating server list, retry " + retry, e);
-                if (retry > MAX_RETRIES_BEFORE_PANIC) {
-                    LOG.error("Maximum retries exceeded, exiting");
-                    return;
-                }
             }
         }
     }
